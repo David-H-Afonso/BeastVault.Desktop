@@ -1,0 +1,63 @@
+{
+  "name": "beastvault-desktop",
+  "version": "1.0.0",
+  "description": "BeastVault Desktop Application",
+  "main": "src/main.js",
+  "author": "David H. Afonso",
+  "license": "MIT",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron . --dev",
+    "build": "npm run build:frontend && npm run build:backend && npm run build:electron",
+    "build:frontend": "cd ../BeastVault.Front && npm run build",
+    "build:backend": "cd ../BeastVault.Api && dotnet publish -c Release -o ../BeastVault.Desktop/dist/backend",
+    "build:electron": "electron-builder --dir",
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder",
+    "dist-installer": "electron-builder",
+    "release": "npm run build:frontend && npm run build:backend && npm run dist",
+    "postinstall": "electron-builder install-app-deps"
+  },
+  "build": {
+    "appId": "com.davidhafonso.beastvault",
+    "productName": "BeastVault",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "src/**/*",
+      "dist/**/*",
+      "node_modules/**/*",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "dist/backend",
+        "to": "backend"
+      },
+      {
+        "from": "dist/frontend",
+        "to": "frontend"
+      }
+    ],
+    "win": {
+      "target": "nsis",
+      "verifyUpdateCodeSignature": false,
+      "signAndEditExecutable": false
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    }
+  },
+  "dependencies": {
+    "electron-serve": "^2.1.0",
+    "find-free-port": "^2.0.0"
+  },
+  "devDependencies": {
+    "electron": "^32.1.0",
+    "electron-builder": "^25.1.7"
+  }
+}
