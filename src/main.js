@@ -13,6 +13,34 @@ console.log("📂 __dirname:", __dirname);
 console.log("📂 process.resourcesPath:", process.resourcesPath);
 console.log("📂 app.getAppPath():", app.getAppPath());
 
+// Configuración del icono de aplicación para Windows (temprano)
+if (process.platform === 'win32') {
+  // Determinar ruta del icono para la aplicación
+  let appIconPath;
+  if (isDev) {
+    appIconPath = path.join(__dirname, '..', 'assets', 'BeastVault-icon.ico');
+  } else {
+    const possiblePaths = [
+      path.join(process.resourcesPath, 'assets', 'BeastVault-icon.ico'),
+      path.join(process.resourcesPath, 'app.asar.unpacked', 'assets', 'BeastVault-icon.ico')
+    ];
+    
+    appIconPath = possiblePaths.find(p => fs.existsSync(p));
+  }
+  
+  if (appIconPath && fs.existsSync(appIconPath)) {
+    console.log('🎯 Setting app icon:', appIconPath);
+    
+    // Configurar el icono de la aplicación
+    const { nativeImage } = require('electron');
+    const appIcon = nativeImage.createFromPath(appIconPath);
+    if (!appIcon.isEmpty()) {
+      app.setAppIcon && app.setAppIcon(appIcon);
+      console.log('✅ App icon set successfully');
+    }
+  }
+}
+
 let mainWindow;
 let backendProcess;
 let frontendUrl;
@@ -24,6 +52,11 @@ const documentsPath = app.getPath("documents");
 const beastVaultPath = path.join(documentsPath, "BeastVault");
 const backupPath = path.join(beastVaultPath, "backup");
 const dbPath = path.join(userDataPath, "beastvault.db");
+
+// Configuración específica para Windows
+if (process.platform === 'win32') {
+  app.setAppUserModelId('com.davidhafonso.beastvault');
+}
 
 // Crear directorios necesarios
 function ensureDirectories() {
@@ -255,17 +288,93 @@ function waitForServer(url, timeout = 30000) {
 
 // Crear ventana principal
 function createWindow() {
-  mainWindow = new BrowserWindow({
+  // Determinar la ruta del icono según el entorno
+  let iconPath;
+  if (isDev) {
+    // En desarrollo
+    iconPath = path.join(__dirname, '..', 'assets', 'BeastVault-icon.ico');
+  } else {
+    // En producción, usar diferentes rutas posibles (preferir PNG para taskbar)
+    const possiblePathsPNG = [
+      path.join(process.resourcesPath, 'app', 'assets', 'BeastVault-icon.png'),
+      path.join(process.resourcesPath, 'assets', 'BeastVault-icon.png'),
+      path.join(__dirname, '..', 'assets', 'BeastVault-icon.png'),
+      path.join(process.resourcesPath, 'app.asar.unpacked', 'assets', 'BeastVault-icon.png')
+    ];
+    
+    const possiblePathsICO = [
+      path.join(process.resourcesPath, 'app', 'assets', 'BeastVault-icon.ico'),
+      path.join(process.resourcesPath, 'assets', 'BeastVault-icon.ico'),
+      path.join(__dirname, '..', 'assets', 'BeastVault-icon.ico'),
+      path.join(process.resourcesPath, 'app.asar.unpacked', 'assets', 'BeastVault-icon.ico')
+    ];
+    
+    // Buscar PNG primero (mejor para taskbar)
+    iconPath = possiblePathsPNG.find(p => {
+      const exists = require('fs').existsSync(p);
+      console.log(`🔍 Checking PNG icon path: ${p} - exists: ${exists}`);
+      return exists;
+    });
+    
+    // Si no hay PNG, buscar ICO
+    if (!iconPath) {
+      iconPath = possiblePathsICO.find(p => {
+        const exists = require('fs').existsSync(p);
+        console.log(`🔍 Checking ICO icon path: ${p} - exists: ${exists}`);
+        return exists;
+      });
+    }
+    
+    if (!iconPath) {
+      console.log('⚠️ No icon found, using default');
+      iconPath = null; // Usar icono por defecto
+    }
+  }
+  
+  console.log('🎯 Final icon path:', iconPath);
+
+  const windowOptions = {
     width: 1200,
     height: 800,
+    title: 'BeastVault',
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
       preload: path.join(__dirname, "preload.js"),
     },
-    icon: path.join(__dirname, '..', 'assets', 'BeastVault-icon.png'),
     show: false,
-  });
+  };
+  
+  // Solo agregar icono si encontramos uno
+  if (iconPath) {
+    windowOptions.icon = iconPath;
+  }
+
+  mainWindow = new BrowserWindow(windowOptions);
+
+  // Configurar icono específicamente para la barra de tareas de Windows
+  if (process.platform === 'win32' && iconPath) {
+    try {
+      // Configurar icono en múltiples formas para Windows
+      mainWindow.setIcon(iconPath);
+      
+      // También configurar para el taskbar usando nativeImage
+      const { nativeImage } = require('electron');
+      const image = nativeImage.createFromPath(iconPath);
+      if (!image.isEmpty()) {
+        mainWindow.setIcon(image);
+        
+        // Configurar overlay icon para la barra de tareas
+        mainWindow.setOverlayIcon(image, 'BeastVault');
+        
+        console.log('✅ Icon set for taskbar using nativeImage');
+      } else {
+        console.log('⚠️ Could not create nativeImage from icon path');
+      }
+    } catch (error) {
+      console.log('⚠️ Error setting taskbar icon:', error.message);
+    }
+  }
 
   // Configurar variable de entorno para el frontend
   mainWindow.webContents.on("dom-ready", () => {
@@ -289,6 +398,22 @@ function createWindow() {
 
   mainWindow.once("ready-to-show", () => {
     mainWindow.show();
+    
+    // Configurar icono una vez más después de que la ventana esté visible
+    if (process.platform === 'win32' && iconPath) {
+      setTimeout(() => {
+        try {
+          const { nativeImage } = require('electron');
+          const image = nativeImage.createFromPath(iconPath);
+          if (!image.isEmpty()) {
+            mainWindow.setIcon(image);
+            console.log('🔄 Icon re-set after window shown');
+          }
+        } catch (error) {
+          console.log('⚠️ Error re-setting icon after show:', error.message);
+        }
+      }, 1000);
+    }
   });
 
   // Abrir enlaces externos en el navegador
@@ -328,6 +453,34 @@ async function showSetupDialog() {
 app.whenReady().then(async () => {
   try {
     ensureDirectories();
+
+    // Configurar icono de aplicación una vez más cuando la app esté lista
+    if (process.platform === 'win32') {
+      let appIconPath;
+      if (isDev) {
+        appIconPath = path.join(__dirname, '..', 'assets', 'BeastVault-icon.ico');
+      } else {
+        const possiblePaths = [
+          path.join(process.resourcesPath, 'assets', 'BeastVault-icon.ico'),
+          path.join(process.resourcesPath, 'app.asar.unpacked', 'assets', 'BeastVault-icon.ico')
+        ];
+        
+        appIconPath = possiblePaths.find(p => fs.existsSync(p));
+      }
+      
+      if (appIconPath && fs.existsSync(appIconPath)) {
+        console.log('🔄 Re-setting app icon when ready:', appIconPath);
+        
+        const { nativeImage } = require('electron');
+        const appIcon = nativeImage.createFromPath(appIconPath);
+        if (!appIcon.isEmpty()) {
+          // Intentar diferentes métodos
+          try { app.setIcon && app.setIcon(appIcon); } catch (e) { }
+          try { app.setAppIcon && app.setAppIcon(appIcon); } catch (e) { }
+          console.log('✅ App icon re-set on ready');
+        }
+      }
+    }
 
     await startBackend();
     await setupFrontend();

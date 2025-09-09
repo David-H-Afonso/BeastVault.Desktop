@@ -25,6 +25,9 @@
       "output": "release"
     },
     "icon": "assets/BeastVault-icon.ico",
+    "asarUnpack": [
+      "assets/**/*"
+    ],
     "files": [
       "src/**/*",
       "dist/**/*",
@@ -40,6 +43,10 @@
       {
         "from": "dist/frontend",
         "to": "frontend"
+      },
+      {
+        "from": "assets",
+        "to": "assets"
       }
     ],
     "win": {
