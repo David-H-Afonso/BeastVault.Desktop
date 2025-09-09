@@ -133,7 +133,7 @@ async function setupFrontend() {
 
       // Iniciar servidor HTTP simple
       const frontendPort = 5173; // Puerto fijo para frontend
-      await startStaticServer(frontendDir, frontendPort);
+      await startStaticServer(frontendDir, frontendPort, apiPort);
       frontendUrl = `http://localhost:${frontendPort}`;
       console.log("🌐 Frontend URL:", frontendUrl);
     } else {
@@ -143,7 +143,7 @@ async function setupFrontend() {
 }
 
 // Servidor HTTP simple para archivos estáticos
-function startStaticServer(directory, port) {
+function startStaticServer(directory, port, apiPortParam) {
   return new Promise((resolve, reject) => {
     const http = require("http");
     const url = require("url");
@@ -164,6 +164,20 @@ function startStaticServer(directory, port) {
     const server = http.createServer((req, res) => {
       const parsedUrl = url.parse(req.url);
       let pathname = path.join(directory, parsedUrl.pathname);
+
+      // Manejar config.js específicamente para Electron
+      if (parsedUrl.pathname === "/config.js") {
+        const configContent = `
+// Configuración para Electron
+window.ENV = {
+  VITE_API_URL: 'http://localhost:${apiPortParam || 5000}'
+};
+console.log('📝 Config.js cargado para Electron:', window.ENV);
+        `;
+        res.setHeader("Content-Type", "application/javascript");
+        res.end(configContent);
+        return;
+      }
 
       // Si es una carpeta, buscar index.html
       if (fs.existsSync(pathname) && fs.lstatSync(pathname).isDirectory()) {
@@ -249,7 +263,7 @@ function createWindow() {
       contextIsolation: true,
       preload: path.join(__dirname, "preload.js"),
     },
-    // icon: path.join(__dirname, '..', 'assets', 'icon.png'), // Comentado hasta que haya icono
+    icon: path.join(__dirname, '..', 'assets', 'BeastVault-icon.png'),
     show: false,
   });
 

@@ -9,7 +9,7 @@
     "start": "electron .",
     "dev": "electron . --dev",
     "build": "npm run build:frontend && npm run build:backend && npm run build:electron",
-    "build:frontend": "cd ../BeastVault.Front && npm run build",
+    "build:frontend": "cd ../BeastVault.Front && npm run build && xcopy /E /I /Y dist ..\\BeastVault.Desktop\\dist\\frontend",
     "build:backend": "cd ../BeastVault.Api && dotnet publish -c Release -o ../BeastVault.Desktop/dist/backend",
     "build:electron": "electron-builder --dir",
     "pack": "electron-builder --dir",
@@ -24,10 +24,12 @@
     "directories": {
       "output": "release"
     },
+    "icon": "assets/BeastVault-icon.ico",
     "files": [
       "src/**/*",
       "dist/**/*",
       "node_modules/**/*",
+      "assets/**/*",
       "package.json"
     ],
     "extraResources": [
@@ -42,6 +44,7 @@
     ],
     "win": {
       "target": "nsis",
+      "icon": "assets/BeastVault-icon.ico",
       "verifyUpdateCodeSignature": false,
       "signAndEditExecutable": false
     },
@@ -49,7 +52,9 @@
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
-      "createStartMenuShortcut": true
+      "createStartMenuShortcut": true,
+      "installerIcon": "assets/BeastVault-icon.ico",
+      "uninstallerIcon": "assets/BeastVault-icon.ico"
     }
   },
   "dependencies": {

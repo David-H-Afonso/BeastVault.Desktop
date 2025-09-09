@@ -1,8 +1,8 @@
 version: 1.0.0
 files:
   - url: BeastVault-Setup-1.0.0.exe
-    sha512: K1RwUsfmeK54bxxL9mKOS4I28ImhKy8FEaaS+wDs3H4U5ap/Y4GBGXgv5DnLcdDZDKurjPGsGlufsg78sN9gHQ==
-    size: 113018842
+    sha512: v9map8urKqTueEDsePRmbDjc9d5+zEo0JtOIHpN8FD9o8/C/kaSgt4/Awop9bi8DCP4no1VBsx9Do1RSUZCJzw==
+    size: 113216666
 path: BeastVault-Setup-1.0.0.exe
-sha512: K1RwUsfmeK54bxxL9mKOS4I28ImhKy8FEaaS+wDs3H4U5ap/Y4GBGXgv5DnLcdDZDKurjPGsGlufsg78sN9gHQ==
-releaseDate: '2025-08-15T15:14:42.329Z'
+sha512: v9map8urKqTueEDsePRmbDjc9d5+zEo0JtOIHpN8FD9o8/C/kaSgt4/Awop9bi8DCP4no1VBsx9Do1RSUZCJzw==
+releaseDate: '2025-09-09T22:02:26.856Z'
