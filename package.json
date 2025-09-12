@@ -10,7 +10,7 @@
     "dev": "electron . --dev",
     "build": "npm run build:frontend && npm run build:backend && npm run build:electron",
     "build:frontend": "cd ../BeastVault.Front && npm run build && xcopy /E /I /Y dist ..\\BeastVault.Desktop\\dist\\frontend",
-    "build:backend": "cd ../BeastVault.Api && dotnet publish -c Release -o ../BeastVault.Desktop/dist/backend",
+    "build:backend": "cd ../BeastVault.Api && dotnet publish -c Release -r win-x64 --self-contained true -o ../BeastVault.Desktop/dist/backend",
     "build:electron": "electron-builder --dir",
     "pack": "electron-builder --dir",
     "dist": "electron-builder",

@@ -2,16 +2,23 @@ const { app, BrowserWindow, shell, dialog } = require("electron");
 const path = require("path");
 const { spawn } = require("child_process");
 const isDev =
-  process.argv.includes("--dev") || process.env.NODE_ENV === "development";
+  process.argv.includes("--dev") || 
+  process.env.NODE_ENV === "development" ||
+  !app.isPackaged;
 const os = require("os");
 const fs = require("fs");
 const findFreePort = require("find-free-port");
 
 console.log("🚀 Iniciando BeastVault...");
 console.log("📍 Modo:", isDev ? "Desarrollo" : "Producción");
-console.log("📂 __dirname:", __dirname);
+console.log("� process.argv:", process.argv);
+console.log("📍 process.env.NODE_ENV:", process.env.NODE_ENV);
+console.log("📍 app.isPackaged:", app.isPackaged);
+console.log("�📂 __dirname:", __dirname);
 console.log("📂 process.resourcesPath:", process.resourcesPath);
 console.log("📂 app.getAppPath():", app.getAppPath());
+console.log("📂 app.getPath('userData'):", app.getPath("userData"));
+console.log("📂 app.getPath('documents'):", app.getPath("documents"));
 
 // Configuración del icono de aplicación para Windows (temprano)
 if (process.platform === 'win32') {
@@ -46,6 +53,15 @@ let backendProcess;
 let frontendUrl;
 let apiPort;
 
+// Configuración específica para Windows
+if (process.platform === 'win32') {
+  app.setAppUserModelId('com.davidhafonso.beastvault');
+}
+
+// Forzar el uso de una ubicación consistente para userData
+const customUserDataPath = path.join(os.homedir(), 'AppData', 'Roaming', 'BeastVault');
+app.setPath('userData', customUserDataPath);
+
 // Configurar rutas de datos del usuario
 const userDataPath = app.getPath("userData");
 const documentsPath = app.getPath("documents");
@@ -53,19 +69,27 @@ const beastVaultPath = path.join(documentsPath, "BeastVault");
 const backupPath = path.join(beastVaultPath, "backup");
 const dbPath = path.join(userDataPath, "beastvault.db");
 
-// Configuración específica para Windows
-if (process.platform === 'win32') {
-  app.setAppUserModelId('com.davidhafonso.beastvault');
-}
-
 // Crear directorios necesarios
 function ensureDirectories() {
+  console.log("📁 Ensuring directories exist...");
+  
   if (!fs.existsSync(beastVaultPath)) {
     fs.mkdirSync(beastVaultPath, { recursive: true });
+    console.log("✅ Created BeastVault directory:", beastVaultPath);
   }
   if (!fs.existsSync(backupPath)) {
     fs.mkdirSync(backupPath, { recursive: true });
+    console.log("✅ Created backup directory:", backupPath);
   }
+  
+  // Crear directorio para la base de datos
+  const dbDir = path.dirname(dbPath);
+  if (!fs.existsSync(dbDir)) {
+    fs.mkdirSync(dbDir, { recursive: true });
+    console.log("✅ Created database directory:", dbDir);
+  }
+  
+  console.log("📁 All directories ready");
 }
 
 // Encontrar puerto libre para el backend
@@ -80,17 +104,34 @@ async function startBackend() {
     try {
       apiPort = await findAvailablePort();
 
+      console.log("🗄️ Database configuration:");
+      console.log("   - Database path:", dbPath);
+      console.log("   - Storage path:", beastVaultPath);
+      console.log("   - User data path:", userDataPath);
+      console.log("   - isDev:", isDev);
+      console.log("   - app.isPackaged:", app.isPackaged);
+
+      // Verificar que el directorio de la base de datos existe
+      const dbDir = path.dirname(dbPath);
+      console.log("   - Database directory:", dbDir);
+      console.log("   - Database directory exists:", fs.existsSync(dbDir));
+
       let backendPath;
       if (isDev) {
         // En desarrollo, usar dotnet run
         backendPath = path.join(__dirname, "..", "..", "BeastVault.Api");
+        console.log("🔧 Starting backend in development mode:");
+        console.log("   - Backend path:", backendPath);
+        console.log("   - BEASTVAULT_DB_PATH:", dbPath);
+        console.log("   - STORAGE_PATH:", beastVaultPath);
+        
         backendProcess = spawn("dotnet", ["run"], {
           cwd: backendPath,
           env: {
             ...process.env,
             ASPNETCORE_URLS: `http://localhost:5000`,
             STORAGE_PATH: beastVaultPath,
-            DB_PATH: dbPath,
+            BEASTVAULT_DB_PATH: dbPath,
             ASPNETCORE_ENVIRONMENT: "Development",
           },
         });
@@ -101,16 +142,27 @@ async function startBackend() {
           "backend",
           "BeastVault.Api.exe"
         );
+        console.log("🔧 Starting backend in production mode:");
+        console.log("   - Backend path:", backendPath);
+        console.log("   - Backend path exists:", fs.existsSync(backendPath));
+        console.log("   - BEASTVAULT_DB_PATH:", dbPath);
+        console.log("   - STORAGE_PATH:", beastVaultPath);
+        
         backendProcess = spawn(backendPath, [], {
           env: {
             ...process.env,
             ASPNETCORE_URLS: `http://localhost:5000`,
             STORAGE_PATH: beastVaultPath,
-            DB_PATH: dbPath,
+            BEASTVAULT_DB_PATH: dbPath,
             ASPNETCORE_ENVIRONMENT: "Production",
           },
         });
       }
+
+      backendProcess.on('error', (error) => {
+        console.error('❌ Failed to start backend process:', error);
+        reject(new Error(`Backend startup failed: ${error.message}`));
+      });
 
       backendProcess.stdout.on("data", (data) => {
         console.log(`Backend: ${data}`);
@@ -121,6 +173,12 @@ async function startBackend() {
 
       backendProcess.stderr.on("data", (data) => {
         console.error(`Backend Error: ${data}`);
+        // Si hay errores críticos al inicio, fallar
+        if (data.toString().includes("Unable to start") || 
+            data.toString().includes("Failed to bind") ||
+            data.toString().includes("Application startup exception")) {
+          reject(new Error(`Backend error: ${data}`));
+        }
       });
 
       backendProcess.on("close", (code) => {
