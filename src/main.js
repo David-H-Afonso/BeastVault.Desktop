@@ -142,9 +142,13 @@ async function startBackend() {
           "backend",
           "BeastVault.Api.exe"
         );
+        const assetsPath = path.join(process.resourcesPath, "backend", "assets");
+        
         console.log("🔧 Starting backend in production mode:");
         console.log("   - Backend path:", backendPath);
         console.log("   - Backend path exists:", fs.existsSync(backendPath));
+        console.log("   - Assets path:", assetsPath);
+        console.log("   - Assets path exists:", fs.existsSync(assetsPath));
         console.log("   - BEASTVAULT_DB_PATH:", dbPath);
         console.log("   - STORAGE_PATH:", beastVaultPath);
         
@@ -154,6 +158,7 @@ async function startBackend() {
             ASPNETCORE_URLS: `http://localhost:5000`,
             STORAGE_PATH: beastVaultPath,
             BEASTVAULT_DB_PATH: dbPath,
+            BEASTVAULT_ASSETS_PATH: assetsPath,
             ASPNETCORE_ENVIRONMENT: "Production",
           },
         });

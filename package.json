@@ -47,6 +47,11 @@
       {
         "from": "assets",
         "to": "assets"
+      },
+      {
+        "from": "../BeastVault.Api/assets",
+        "to": "backend/assets",
+        "filter": ["**/*"]
       }
     ],
     "win": {
